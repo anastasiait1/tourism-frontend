@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
-import { LocateFixed, LoaderCircle, MapPin, Minus, Plus } from "lucide-react";
+import { LoaderCircle, MapPin } from "lucide-react";
 import { env } from "@shared/config/env";
 import type { LngLat, LngLatBounds } from "@shared/lib/geo";
 import type { Poi } from "@domains/poi";
@@ -40,9 +40,6 @@ function isLngLat(value: unknown): value is LngLat {
 export function YandexMap({ pois, onBoundsChange, onSelectPoi, onLocateError, selectionMode = false, selectedPoint = null, onPointSelect, }: Props) {
   const [components, setComponents] = useState<YandexReactComponents | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(6);
-  const [mapRef, setMapRef] = useState<{ update: (props: Record<string, unknown>) => void } | null>(null);
-
 
   const initialLocation = useMemo(
     () => ({
@@ -127,20 +124,6 @@ export function YandexMap({ pois, onBoundsChange, onSelectPoi, onLocateError, se
     properties: { name: poi.name, category: poi.category },
   })), [pois]);
 
-  const locate = () => {
-    if (!navigator.geolocation) {
-      onLocateError("Браузер не поддерживает геолокацию");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        mapRef?.update({ location: { center: [coords.longitude, coords.latitude], zoom: 14, duration: 450 } });
-      },
-      (error) => onLocateError(error.code === error.PERMISSION_DENIED ? "Разреши доступ к геолокации в настройках браузера" : "Не удалось определить местоположение"),
-      { enableHighAccuracy: true, timeout: 10_000 },
-    );
-  };
-
   if (loadError) return <div className="map-status map-status-error"><MapPin size={28} /><strong>Карта пока недоступна</strong><span>{loadError}</span></div>;
   if (!components || !clusterMethod) return <div className="map-status"><LoaderCircle className="animate-spin" size={28} /><span>Загружаем карту Беларуси…</span></div>;
 
@@ -156,7 +139,6 @@ export function YandexMap({ pois, onBoundsChange, onSelectPoi, onLocateError, se
         location={initialLocation}
         mode="vector"
         behaviors={["drag", "scrollZoom", "dblClick", "multiTouch"]}
-        ref={(instance: unknown) => setMapRef(instance as typeof mapRef)}
       >
         <YMapDefaultSchemeLayer />
         <YMapDefaultFeaturesLayer />
@@ -189,11 +171,6 @@ export function YandexMap({ pois, onBoundsChange, onSelectPoi, onLocateError, se
           <YMapGeolocationControl />
         </YMapControls>
       </YMap>
-      <div className="map-floating-controls">
-        <button type="button" aria-label="Приблизить карту" onClick={() => { const next = Math.min(zoom + 1, 19); setZoom(next); mapRef?.update({ location: { zoom: next, duration: 200 } }); }}><Plus size={19} /></button>
-        <button type="button" aria-label="Отдалить карту" onClick={() => { const next = Math.max(zoom - 1, 3); setZoom(next); mapRef?.update({ location: { zoom: next, duration: 200 } }); }}><Minus size={19} /></button>
-        <button type="button" aria-label="Моё местоположение" onClick={locate}><LocateFixed size={19} /></button>
-      </div>
       <div className="map-attribution">© Яндекс Карты</div>
     </div>
   );
